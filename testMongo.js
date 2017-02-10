@@ -14,11 +14,11 @@ MongoClient.connect(url, function (err, db) {
         db.close();        
     });
     */
-    /*
+    
     findAllDocuments(db, function () {
         db.close();
     });
-    */
+    
     /*
     findDocuments(db, function () {
         db.close();
@@ -34,11 +34,11 @@ MongoClient.connect(url, function (err, db) {
         db.close();
     });
     */
-    
+    /*
     indexCollection(db, function () {
         db.close();
     });
-
+    */
 });
 
 var insertDocuments = function (db, callback) {
@@ -59,7 +59,7 @@ var insertDocuments = function (db, callback) {
 //query to find all items in documents
 var findAllDocuments = function (db, callback) {
   // Get the documents collection
-    var collection = db.collection('documents');
+    var collection = db.collection('notes');
   // Find some documents
     collection.find({}).toArray(function (err, docs) {
         assert.equal(err, null);

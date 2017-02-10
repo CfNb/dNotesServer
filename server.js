@@ -2,6 +2,7 @@
 
 var fs = require('fs'); // node filesystem
 var MongoClient = require('mongodb').MongoClient, assert = require('assert');
+var ObjectId = require('mongodb').ObjectId;
 var express = require('express');
 var app = express();
 var url = 'mongodb://localhost:27017/myproject';
@@ -23,14 +24,38 @@ function insertNote(db, newNote, callback) {
 function getNotes(db, theQuery, callback) {
     'use strict';
     var collection = db.collection('notes');
-  // Find some notes
+    // Find some notes
     collection.find(theQuery).toArray(function (err, docs) {
         assert.equal(err, null);
-        console.log("Found the following records");
+        console.log("Found " + docs.length + " records");
         console.log(docs);
         callback(docs);
     });
 }
+
+function deleteNote(db, noteID, callback) {
+    'use strict';
+    var collection = db.collection('notes');
+    //flag note as deleted
+    collection.findOneAndUpdate(
+        {_id: new ObjectId(noteID)},
+        {$set: {deleted: true}},
+        {projection: {"_id" : 0,  "customer" : 1, "job" : 1, "item" : 1, "deleted" : 1}},
+        function (err, doc) {
+            assert.equal(err, null);
+            console.log("Flagged note " + noteID + " deleted");
+            callback(doc);
+        }
+    );
+}
+
+///////////////////////////////////////////
+// Node FS functions
+function customerFromXML(url) {
+    //var url = 'file:///Volumes/Jobs/104491-Creative%20Instinct-Mythical%20Creatures%20Card%20Wrapper/digital_info.xml'
+    fs.readFile(url, 'utf8', callback);
+}
+
 
 
 ///////////////////////////////////////////
@@ -52,9 +77,10 @@ deleted: bool, has the note been removed, default false
 // receives new note info, saves to db
 app.use('/notesend', function (req, res) {
     'use strict';
+    console.log('notesend requested');
     // user sent new note date via get req
 
-        // Customer, Job, or item db entry if needed?
+    // Customer, Job, or item db entry if needed?
     
     // format data for new db document
     var newNote = {
@@ -80,7 +106,7 @@ app.use('/notesend', function (req, res) {
     MongoClient.connect(url, function (err, db) {
         assert.equal(null, err);
         console.log("connected sucessfully to db server");
-        // save note to db
+        // save note to db, returning refreshed note list
         insertNote(db, newNote, function (results) {
             // query db
             getNotes(db, theQuery, function (docs) {
@@ -89,28 +115,15 @@ app.use('/notesend', function (req, res) {
             });
         });
     });
-
-    // send back refreshed list of all notes for that category(Customer, Job or Item)
-
-        
-        
-        
-    // format and send response(JSON array of notes?)
-    
-    
     
     // on error
-    //res.send('error');
-    
-    
+    //res.send('error');    
 });
-
-
-
 
 // receives note identifiers, returns matching notes
 app.use('/noteget', function (req, res) {
     'use strict';
+    console.log('noteget requested');
     // format query for response
     var theQuery = {
         customer : req.query.customer,
@@ -130,14 +143,33 @@ app.use('/noteget', function (req, res) {
     });
 });
 
-
+// receives note id, deletes note, returns refreshed notes list
+app.use('/notedelete', function (req, res) {
+    'use strict';
+    console.log('notedelete requested');
+    var noteID = req.query.id;
+    
+    MongoClient.connect(url, function (err, db) {
+        assert.equal(null, err);
+        console.log("connected sucessfully to db server");
+        // flag note as deleted in db, returning refreshed note list
+        deleteNote(db, noteID, function (doc) {
+            console.log(doc.value);
+            // query db
+            getNotes(db, doc.value, function (docs) {
+                db.close();
+                res.send(docs);
+            });
+        });
+    });
+});
 
 
 app.use('/printflowstatus', function (req, res) {
     'use strict';
 	// readdir returns array of contents of folder
 	// stat returns info object about target
-	fs.stat('/Users/dbadmin/Test', function (err, stats) {
+	fs.stat('/Volumes/Jobs/104491-Creative Instinct-Mythical Creatures Card Wrapper/Indigo - Job 104491/', function (err, stats) {
 		if (err) {
 			res.send(err);
 		} else {
