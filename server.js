@@ -51,9 +51,9 @@ function deleteNote(db, noteID, callback) {
 
 ///////////////////////////////////////////
 // Node FS functions
-function customerFromXML(url) {
-    //var url = 'file:///Volumes/Jobs/104491-Creative%20Instinct-Mythical%20Creatures%20Card%20Wrapper/digital_info.xml'
-    fs.readFile(url, 'utf8', callback);
+function customerFromXML(url, callback) {
+    'use strict';
+
 }
 
 
@@ -79,8 +79,10 @@ app.use('/notesend', function (req, res) {
     'use strict';
     console.log('notesend requested');
     // user sent new note date via get req
-
-    // Customer, Job, or item db entry if needed?
+    
+    //get customer# from given url by reading .xml file
+    
+    
     
     // format data for new db document
     var newNote = {
@@ -88,7 +90,7 @@ app.use('/notesend', function (req, res) {
         job : req.query.job,
         item : req.query.item,
         author : req.query.author,
-        stage : req.query.stage,
+        filename : req.query.filename,
         date : req.query.date,
         content : req.query.content,
         deleted: false
@@ -164,24 +166,12 @@ app.use('/notedelete', function (req, res) {
     });
 });
 
-
+//'/printflowstatus' is unused, can use for testing purposes
 app.use('/printflowstatus', function (req, res) {
     'use strict';
-	// readdir returns array of contents of folder
-	// stat returns info object about target
-	fs.stat('/Volumes/Jobs/104491-Creative Instinct-Mythical Creatures Card Wrapper/Indigo - Job 104491/', function (err, stats) {
-		if (err) {
-			res.send(err);
-		} else {
-			res.send(stats.ctime + ' reply from server');
-		}
-	});
-	// connect to remote printflow server
+	customerFromXML(req.query.url, function (document) {
 
-	// get modified date of printflow folder
-
-	// return date
-	
+    });
 });
 
 // '/' must be last, or it will supercede other urls(ex. '/test' wont fire after '/')
