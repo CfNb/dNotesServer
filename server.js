@@ -5,6 +5,9 @@ var MongoClient = require('mongodb').MongoClient, assert = require('assert');
 var ObjectId = require('mongodb').ObjectId;
 var express = require('express');
 var app = express();
+var bodyParser = require('body-parser');
+var parseString = require('xml2js').parseString;
+
 var url = 'mongodb://localhost:27017/myproject';
 
 ///////////////////////////////////////////
@@ -51,12 +54,21 @@ function deleteNote(db, noteID, callback) {
 
 ///////////////////////////////////////////
 // Node FS functions
-function customerFromXML(url, callback) {
+function jsFromXML(url, callback) {
     'use strict';
-
+    console.log('given url:' + url);
+    
+    fs.readFile(url, 'utf8', function (err, data) {
+        if (!err) {
+            console.log(JSON.stringify(data));
+            console.log('readfile ok');
+            parseString(data, callback);
+        } else {
+            console.log('pass error to callback');
+            callback(err, data);
+        }
+    });
 }
-
-
 
 ///////////////////////////////////////////
 // Express Handlers
@@ -74,52 +86,61 @@ content: user entered text
 deleted: bool, has the note been removed, default false
 */
 
-// receives new note info, saves to db
+// receives new note info in post format, saves to db
 app.use('/notesend', function (req, res) {
     'use strict';
     console.log('notesend requested');
     // user sent new note date via get req
     
     //get customer# from given url by reading .xml file
+    var customerNumber;
     
-    
-    
-    // format data for new db document
-    var newNote = {
-        customer : req.query.customer,
-        job : req.query.job,
-        item : req.query.item,
-        author : req.query.author,
-        filename : req.query.filename,
-        date : req.query.date,
-        content : req.query.content,
-        deleted: false
-    };
-    
-    // format query for response
-    var theQuery = {
-        customer : req.query.customer,
-        job : req.query.job,
-        item : req.query.item,
-        deleted: false
-    };
-    
-    // save note to db
-    MongoClient.connect(url, function (err, db) {
-        assert.equal(null, err);
-        console.log("connected sucessfully to db server");
-        // save note to db, returning refreshed note list
-        insertNote(db, newNote, function (results) {
-            // query db
-            getNotes(db, theQuery, function (docs) {
-                db.close();
-                res.send(docs);
-            });
-        });
+    jsFromXML(req.body.url + '/.digital_info.xml', function (err, result) {
+        if (!err) {
+            customerNumber = result.Main.Customer[0];
+        } else {
+            console.log(err);
+        }
     });
     
-    // on error
-    //res.send('error');    
+    if (customerNumber === undefined) {
+        res.send('error - customer undefined');
+    } else {
+        // format data for new db document
+        var newNote = {
+            customer : customerNumber,
+            customerName : req.body.customer,
+            job : req.body.job,
+            item : req.body.item,
+            author : req.body.author,
+            filename : req.body.filename,
+            date : req.body.date,
+            content : req.body.content,
+            deleted: false
+        };
+
+        // format query for response
+        var theQuery = {
+            customer : req.body.customer,
+            job : req.body.job,
+            item : req.body.item,
+            deleted: false
+        };
+
+        // save note to db
+        MongoClient.connect(url, function (err, db) {
+            assert.equal(null, err);
+            console.log("connected sucessfully to db server");
+            // save note to db, returning refreshed note list
+            insertNote(db, newNote, function (results) {
+                // query db
+                getNotes(db, theQuery, function (docs) {
+                    db.close();
+                    res.send(docs);
+                });
+            });
+        });
+    }
 });
 
 // receives note identifiers, returns matching notes
@@ -169,8 +190,13 @@ app.use('/notedelete', function (req, res) {
 //'/printflowstatus' is unused, can use for testing purposes
 app.use('/printflowstatus', function (req, res) {
     'use strict';
-	customerFromXML(req.query.url, function (document) {
-
+    jsFromXML(req.query.url, function (err, result) {
+        if (!err) {
+            res.send(result.Main.Customer[0]);
+        } else {
+            console.log(err);
+            res.send(err);
+        }
     });
 });
 
