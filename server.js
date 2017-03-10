@@ -4,9 +4,16 @@ var fs = require('fs'); // node filesystem
 var MongoClient = require('mongodb').MongoClient, assert = require('assert');
 var ObjectId = require('mongodb').ObjectId;
 var express = require('express');
-var app = express();
-var bodyParser = require('body-parser');
 var parseString = require('xml2js').parseString;
+var bodyParser = require('body-parser');
+
+var app = express();
+
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// parse application/json
+app.use(bodyParser.json());
 
 var url = 'mongodb://localhost:27017/myproject';
 
@@ -19,7 +26,7 @@ function insertNote(db, newNote, callback) {
         assert.equal(err, null);
         assert.equal(1, result.result.n);
         assert.equal(1, result.ops.length);
-        console.log("Inserted 1 document into notes");
+        console.log(Date() + " Inserted 1 document into notes");
         callback(result);
     });
 }
@@ -31,7 +38,7 @@ function getNotes(db, theQuery, callback) {
     collection.find(theQuery).toArray(function (err, docs) {
         assert.equal(err, null);
         console.log("Found " + docs.length + " records");
-        console.log(docs);
+        console.log(Date() + ' ' + docs);
         callback(docs);
     });
 }
@@ -46,7 +53,7 @@ function deleteNote(db, noteID, callback) {
         {projection: {"_id" : 0,  "customer" : 1, "job" : 1, "item" : 1, "deleted" : 1}},
         function (err, doc) {
             assert.equal(err, null);
-            console.log("Flagged note " + noteID + " deleted");
+            console.log(Date() + " Flagged note " + noteID + " deleted");
             callback(doc);
         }
     );
@@ -61,10 +68,10 @@ function jsFromXML(url, callback) {
     fs.readFile(url, 'utf8', function (err, data) {
         if (!err) {
             console.log(JSON.stringify(data));
-            console.log('readfile ok');
+            console.log(Date() + ' readfile ok');
             parseString(data, callback);
         } else {
-            console.log('pass error to callback');
+            console.log(Date() + ' pass error to callback');
             callback(err, data);
         }
     });
@@ -80,7 +87,7 @@ customer: customer #
 job: job #, undefined for Customer Notes
 item: item #, undefined for Job Notes
 author: initials, stored in localstorage and userID var
-stage: job stage determined by file URL; GTG, Preflight, Proof #1, Job, etc.
+filename: name of file at time of note, filename should reveal job stage
 date: current date object, when note was created
 content: user entered text
 deleted: bool, has the note been removed, default false
@@ -89,8 +96,8 @@ deleted: bool, has the note been removed, default false
 // receives new note info in post format, saves to db
 app.use('/notesend', function (req, res) {
     'use strict';
-    console.log('notesend requested');
-    // user sent new note date via get req
+    console.log(Date() + ' notesend requested');
+    // user sent new note date via post
     
     //get customer# from given url by reading .xml file
     var customerNumber;
@@ -98,86 +105,95 @@ app.use('/notesend', function (req, res) {
     jsFromXML(req.body.url + '/.digital_info.xml', function (err, result) {
         if (!err) {
             customerNumber = result.Main.Customer[0];
-        } else {
-            console.log(err);
-        }
-    });
-    
-    if (customerNumber === undefined) {
-        res.send('error - customer undefined');
-    } else {
-        // format data for new db document
-        var newNote = {
-            customer : customerNumber,
-            customerName : req.body.customer,
-            job : req.body.job,
-            item : req.body.item,
-            author : req.body.author,
-            filename : req.body.filename,
-            date : req.body.date,
-            content : req.body.content,
-            deleted: false
-        };
 
-        // format query for response
-        var theQuery = {
-            customer : req.body.customer,
-            job : req.body.job,
-            item : req.body.item,
-            deleted: false
-        };
+            // format data for new db document
+            var newNote = {
+                customer : customerNumber,
+                job : req.body.job,
+                item : req.body.item,
+                author : req.body.author,
+                filename : req.body.filename,
+                date : req.body.date,
+                content : req.body.content,
+                deleted: false
+            };
 
-        // save note to db
-        MongoClient.connect(url, function (err, db) {
-            assert.equal(null, err);
-            console.log("connected sucessfully to db server");
-            // save note to db, returning refreshed note list
-            insertNote(db, newNote, function (results) {
-                // query db
-                getNotes(db, theQuery, function (docs) {
-                    db.close();
-                    res.send(docs);
+            // format query for response
+            var theQuery = {
+                customer : customerNumber,
+                job : req.body.job,
+                item : req.body.item,
+                deleted: false
+            };
+
+            // save note to db
+            MongoClient.connect(url, function (err, db) {
+                assert.equal(null, err);
+                console.log(Date() + " connected sucessfully to db server - notesend");
+                // save note to db, returning refreshed note list
+                insertNote(db, newNote, function (results) {
+                    // query db
+                    getNotes(db, theQuery, function (docs) {
+                        db.close();
+                        res.send(docs);
+                    });
                 });
             });
-        });
-    }
+        } else {
+            console.log(Date() + ' ' + err);
+            res.send('error - customer undefined');
+        }
+    });
 });
 
 // receives note identifiers, returns matching notes
 app.use('/noteget', function (req, res) {
     'use strict';
-    console.log('noteget requested');
-    // format query for response
-    var theQuery = {
-        customer : req.query.customer,
-        job : req.query.job,
-        item : req.query.item,
-        deleted: false
-    };
+    console.log(Date() + 'noteget requested');
     
-    MongoClient.connect(url, function (err, db) {
-        assert.equal(null, err);
-        console.log("connected sucessfully to db server");
-        // get notes from db
-        getNotes(db, theQuery, function (docs) {
-            db.close();
-            res.send(docs);
-        });
+    //get customer# from given url by reading .xml file
+    var customerNumber;
+    
+    jsFromXML(req.body.url + '/.digital_info.xml', function (err, result) {
+        if (!err) {
+            customerNumber = result.Main.Customer[0];
+            
+            // format query for response
+            var theQuery = {
+                customer : customerNumber,
+                job : req.body.job,
+                item : req.body.item,
+                deleted: false
+            };
+
+            MongoClient.connect(url, function (err, db) {
+                assert.equal(null, err);
+                console.log(Date() + " connected sucessfully to db server - notget");
+                // get notes from db
+                getNotes(db, theQuery, function (docs) {
+                    db.close();
+                    res.send(docs);
+                });
+            });
+        } else {
+            console.log(Date() + ' ' + err);
+            res.send('error - customer undefined');
+        }
     });
 });
 
 // receives note id, deletes note, returns refreshed notes list
 app.use('/notedelete', function (req, res) {
     'use strict';
-    console.log('notedelete requested');
+    console.log(Date() + 'notedelete requested');
     var noteID = req.query.id;
     
     MongoClient.connect(url, function (err, db) {
         assert.equal(null, err);
-        console.log("connected sucessfully to db server");
+        console.log(Date() + " connected sucessfully to db server - notdelete");
         // flag note as deleted in db, returning refreshed note list
         deleteNote(db, noteID, function (doc) {
-            console.log(doc.value);
+            console.log(Date() + ' ' + doc.value);
             // query db
             getNotes(db, doc.value, function (docs) {
                 db.close();
@@ -194,7 +210,7 @@ app.use('/printflowstatus', function (req, res) {
         if (!err) {
             res.send(result.Main.Customer[0]);
         } else {
-            console.log(err);
+            console.log(Date() + err);
             res.send(err);
         }
     });
@@ -209,5 +225,5 @@ app.use('/', function (req, res) {
 
 app.listen(8080, function () {
     'use strict';
-    console.log('node service app listening on port 8080!');
+    console.log(Date() + ' node service app listening on port 8080!');
 });
