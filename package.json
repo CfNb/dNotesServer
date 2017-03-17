@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "rs",
+  "author": "Rick Scheunemann",
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.16.1",
