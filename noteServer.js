@@ -16,7 +16,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 // database Connection URL
-var url = 'mongodb://localhost:27017/myproject';
+var url = 'mongodb://localhost:27017/digital';
 
 ///////////////////////////////////////////
 // MongoDB Functions
@@ -65,12 +65,12 @@ function deleteNote(db, noteID, callback) {
 //reads .digital_info.xml file
 function jsFromXML(url, callback) {
     'use strict';
-    console.log(Date() + ' Given url:' + url);
+    //console.log(Date() + ' Given url:' + url);
     
     fs.readFile(url, 'utf8', function (err, data) {
         if (!err) {
             //console.log(JSON.stringify(data));
-            console.log(Date() + ' readfile ok');
+            //console.log(Date() + ' readfile ok');
             parseString(data, callback);
         } else {
             console.log(Date() + ' Passing error to callback');
@@ -140,27 +140,26 @@ function setJobQuery(customerNumber, jobNumber, itemNumber, url, newNote, res, c
     var jobQuery;
     //check for GtG if requesting job notes
     if (jobNumber !== undefined && itemNumber === undefined && !jobNumber.startsWith("G")) {
-        console.log(Date() + ' setJobQuery- Job notes and is not GtG Job');
+        console.log(Date() + ' setJobQuery - Job notes and is not GtG Job');
         url =  url + '/Indigo - Job ' + jobNumber;
-        console.log(Date() + ' setJobQuery-' + url);
+        console.log(Date() + ' setJobQuery - ' + url);
         fs.readdir(url, function (err, files) {
-            console.log(Date() + ' setJobQuery-readdir');
+            console.log(Date() + ' setJobQuery - readdir');
             if (!err) {
-                console.log(Date() + ' setJobQuery-' + files);
-                console.log(files.length);
+                //console.log(Date() + ' setJobQuery - ' + files);
+                //console.log(files.length);
                 var i, fileName, theQuery;
                 var jobQueries = [];
                 var fileCount = files.length;
                 for (i = 0; i < fileCount; i++) {
-                    console.log(Date() + ' setJobQuery-' + files[i]);
+                    //console.log(Date() + ' setJobQuery - ' + files[i]);
                     fileName = files[i];
                     if (fileName.startsWith("GtG - ")) {
-                        console.log('found GtG');
                         jobQueries.push(fileName.split(" - ").pop());
                     }
                 }
                 if (jobQueries.length > 0) {
-                    console.log(Date() + ' setJobQuery-found GtG');
+                    console.log(Date() + ' setJobQuery - found GtG');
                     jobQueries.push(jobNumber);
                     theQuery = {
                         customer : customerNumber,
@@ -170,8 +169,7 @@ function setJobQuery(customerNumber, jobNumber, itemNumber, url, newNote, res, c
                     };
                     callback(newNote, theQuery, res);
                 } else {
-                    console.log(Date() + ' setJobQuery-No GtGs found');
-
+                    console.log(Date() + ' setJobQuery - No GtGs found');
                     theQuery = {
                         customer : customerNumber,
                         job : jobNumber,
@@ -181,13 +179,12 @@ function setJobQuery(customerNumber, jobNumber, itemNumber, url, newNote, res, c
                     callback(newNote, theQuery, res);
                 }
             } else {
-                console.log(Date() + ' setJobQuery-' + err);
+                console.log(Date() + ' setJobQuery - ' + err);
                 res.send('error - customer undefined');
             }
         });
     } else {
-        
-        console.log(Date() + ' setJobQuery-Not job notes or is GtG Job');
+        console.log(Date() + ' setJobQuery - Not job notes or is GtG Job');
         
         var theQuery = {
             customer : customerNumber,
@@ -224,6 +221,7 @@ app.use('/notesend', function (req, res) {
     //gets customer# from given url by reading .xml file
     jsFromXML(req.body.url + '/.digital_info.xml', function (err, result) {
         if (!err) {
+            //var customerNumber = result.Main.$.customer;
             var customerNumber = result.Main.Customer[0];
             var jobNumber = req.body.job;
             var itemNumber = req.body.item;
@@ -298,5 +296,5 @@ app.use('/', function (req, res) {
 
 app.listen(8080, function () {
     'use strict';
-    console.log(Date() + ' nodeservice app listening on port 8080!');
+    console.log(Date() + ' noteServer app listening on port 8080!');
 });
